@@ -1,0 +1,12 @@
+{
+    "proxy": {
+        "port": 80
+    },
+    "services": [
+        {
+            "id": "pouet",
+            "pattern": "^/pouet/",
+            "port": 9090
+        }
+    ]    
+}
