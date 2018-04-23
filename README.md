@@ -1,5 +1,7 @@
 ### CAPYBARAS ARE LOVE
 
+[![Build Status](https://travis-ci.org/monkeydioude/capybara.svg?branch=master)](https://travis-ci.org/monkeydioude/capybara)
+
 Simple Reverse-Proxy written in go.
 
 Listen to a port and redirect any url matching a pattern to an other port.
