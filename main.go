@@ -57,7 +57,7 @@ func (h *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	http.NotFound(rw, r)
 }
 
-func newConfig(p string) (c config) {
+func newConfig(p string) (c *config) {
 	d, err := ioutil.ReadFile(p)
 
 	if err != nil {
@@ -91,6 +91,8 @@ func main() {
 	handler := &handler{
 		s: c.Services,
 	}
+
+	go updateServicesRoutine(handler, cp)
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", c.Proxy.Port),
