@@ -2,14 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"time"
 )
 
@@ -18,9 +17,10 @@ type proxy struct {
 }
 
 type service struct {
-	ID      string `json:"id"`
-	Pattern string `json:"pattern"`
-	Port    int    `json:"port"`
+	ID            string `json:"id"`
+	Pattern       string `json:"pattern"`
+	Port          int    `json:"port"`
+	RemovePattern bool   `json:"removePattern,omitempty"`
 }
 
 type config struct {
@@ -50,6 +50,9 @@ func (h *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		rp := httputil.NewSingleHostReverseProxy(u)
+		if service.RemovePattern {
+			r.URL.Path = "/"
+		}
 		rp.ServeHTTP(rw, r)
 		return
 	}
@@ -73,26 +76,20 @@ func newConfig(p string) (c *config) {
 	return
 }
 
-func getConfigPath() (string, error) {
-	if len(os.Args) != 2 {
-		return "", errors.New("[ERR ] Takes only 1 parameter, config json file path")
-	}
-	return os.Args[1], nil
-}
-
 func main() {
-	cp, err := getConfigPath()
-
-	if err != nil {
-		log.Fatal(err.Error())
+	cp := flag.String("c", "", "Path to config file")
+	flag.Parse()
+	if *cp == "" {
+		log.Fatal("[ERR ] Path to Config json file is required.")
 	}
-	c := newConfig(cp)
+
+	c := newConfig(*cp)
 
 	handler := &handler{
 		s: c.Services,
 	}
 
-	go updateServicesRoutine(handler, cp)
+	go updateServicesRoutine(handler, *cp)
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", c.Proxy.Port),
