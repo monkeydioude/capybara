@@ -4,9 +4,9 @@
 
 Simple Reverse-Proxy written in go.
 
-Listen to a port and redirect any url matching a pattern to an other port.
+Listen to a port and redirect any url matching a pattern to another port.
 
-I made this as a solution for hosting multiple services on the same "url" without relying on port straight in the URL. Some companies/organizations block any request to a url using a port as one of their security measures.
+I made this as a solution for hosting multiple services on the same "url" without relying on having a port straight in the URL. Some companies/organizations block any request to a url using a port as one of their security measures.
 
 **First parameter must be the path to your config json file**
 
