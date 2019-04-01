@@ -31,3 +31,15 @@ Example of config.json
 This config will redirect any request caught on port 80, starting with "/kwak" to the port 9090.
 
 **/ ! \ On Linux (did not try on other system), capybara must be run with sudo if chosen proxy port is under 1024. It will fail otherwise.**
+
+
+This project still needs:
+- Tests
+- Refacto (so it can be more easily tested)
+- Allow config refresh through config file
+- Use a more efficient pattern engine than regex. Maybe [homemade pURL ?](https://github.com/monkeydioude/moon/tree/master/pkg/purl)
+
+
+This project might need:
+- Redirect HTTPS ?
+- Better logging ?
