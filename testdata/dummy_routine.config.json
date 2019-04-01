@@ -1,0 +1,12 @@
+{
+    "proxy": {
+        "port": 88
+    },
+    "services": [
+        {
+            "id": "ashi",
+            "pattern": "^/ashi/",
+            "port": 9191
+        }
+    ]    
+}

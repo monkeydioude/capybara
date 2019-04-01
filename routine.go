@@ -1,4 +1,4 @@
-package main
+package capybara
 
 import (
 	"log"
@@ -7,12 +7,16 @@ import (
 
 const UPDATE_SERVICE_TIMER = 30 * time.Second
 
-func updateServicesRoutine(h *handler, path string) {
-	timer := time.NewTimer(UPDATE_SERVICE_TIMER)
+func UpdateServicesRoutine(h *Handler, path string, d time.Duration) {
+	timer := time.NewTimer(d)
 	<-timer.C
 
 	log.Println("[INFO] Updating services list")
-	c := newConfig(path)
-	h.s = c.Services
-	updateServicesRoutine(h, path)
+	c := NewConfig(path)
+	h.services = c.Services
+	UpdateServicesRoutine(h, path, d)
+}
+
+func Log(msg string) {
+	log.Print(msg)
 }
