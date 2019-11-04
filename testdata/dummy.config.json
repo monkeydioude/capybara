@@ -13,6 +13,13 @@
             "method": "string",
             "pattern": "/maiden",
             "port": 9091
+        },
+        {
+            "id": "test3",
+            "method": "string",
+            "pattern": "/space?",
+            "redirect": "/spaaaaaaaaaaaaaaaaaaaaaaace",
+            "port": 9092  
         }
     ]    
 }

@@ -18,11 +18,11 @@ type proxy struct {
 }
 
 type service struct {
-	ID            string `json:"id"`
-	Pattern       string `json:"pattern"`
-	Method        string `json:"method"`
-	Port          int    `json:"port"`
-	RemovePattern bool   `json:"removePattern,omitempty"`
+	ID       string `json:"id"`
+	Pattern  string `json:"pattern"`
+	Method   string `json:"method"`
+	Port     int    `json:"port"`
+	Redirect string `json:"redirect"`
 }
 
 // Config handles the config fed to Capybara.
@@ -61,7 +61,7 @@ func buildURL(p int) string {
 	return b.String()
 }
 
-// ServeHTTP implements net/http::Handler interface
+// ServeHTTP implements net/http/Handler interface
 func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if r.RequestURI == "/favicon.ico" {
 		rw.WriteHeader(200)
@@ -90,8 +90,8 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		rp := httputil.NewSingleHostReverseProxy(u)
-		if service.RemovePattern {
-			r.URL.Path = "/"
+		if service.Redirect != "" {
+			r.URL.Path = service.Redirect
 		}
 		rp.ServeHTTP(rw, r)
 		return
