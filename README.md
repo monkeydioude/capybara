@@ -19,16 +19,24 @@ Example of config.json
     },
     "services": [
         {
-            "id": "snoopdorkydork",
+            "id": "duck",
             "pattern": "^/kwak/",
             "port": 9090
+        },
+        {
+            "id": "stoned",
+            "method": "string",
+            "pattern": "/jesus",
+            "port": 9091
         }
     ]    
 }
 
 ```
 
-This config will redirect any request caught on port 80, starting with "/kwak" to the port 9090.
+Entries in "services" by id:
+- "duck" will redirect any request caught on port 80, starting with "/kwak" to the port 9090 using a **regex** as matching (default) method.
+- "stoned" will redirect any request caught on port 80, starting with "/jesus" to the port 9091 using a **string** as matching method. This method compare the string with the beginning of the URI. It does not try to find the string inside the URI.
 
 **/ ! \ On Linux (did not try on other system), capybara must be run with sudo if chosen proxy port is under 1024. It will fail otherwise.**
 
@@ -37,7 +45,8 @@ This project still needs:
 - Tests
 - Refacto (so it can be more easily tested)
 - Allow config refresh through config file
-- Use a more efficient pattern engine than regex. Maybe [homemade pURL ?](https://github.com/monkeydioude/moon/tree/master/pkg/purl)
+- More methods of matching besides "string" and "regex"
+- Refacto "RemovePattern" behavior to a "RedirectPath" behavior
 
 
 This project might need:

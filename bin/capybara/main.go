@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/monkeydioude/capybara"
+	"github.com/monkeydioude/capybara/pkg/capybara"
 )
 
 func startingLog(conf *capybara.Config) {

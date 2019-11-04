@@ -4,9 +4,15 @@
     },
     "services": [
         {
-            "id": "pouet",
-            "pattern": "^/pouet/",
+            "id": "test1",
+            "pattern": "^/iron$",
             "port": 9090
+        },
+        {
+            "id": "test2",
+            "method": "string",
+            "pattern": "/maiden",
+            "port": 9091
         }
     ]    
 }
