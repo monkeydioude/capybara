@@ -2,12 +2,12 @@ package capybara
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
+	"os"
 )
 
 func NewConfig(p string) (c *Config) {
-	d, err := ioutil.ReadFile(p)
+	d, err := os.ReadFile(p)
 
 	if err != nil {
 		log.Fatalf("[ERR ] Could not ReadFile, reason: %s", err)

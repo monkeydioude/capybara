@@ -45,8 +45,18 @@ func main() {
 		MaxHeaderBytes: 1 << 20,
 	}
 
+	serve := func() error {
+		return server.ListenAndServe()
+	}
+	if conf.Proxy.TLSCrt != "" && conf.Proxy.TLSKey != "" {
+
+		serve = func() error {
+			return server.ListenAndServeTLS(conf.Proxy.TLSCrt, conf.Proxy.TLSKey)
+		}
+	}
+
 	startingLog(conf)
-	if err := server.ListenAndServe(); err != nil {
+	if err := serve(); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -14,7 +14,9 @@ const defaultMethod = "regex"
 const defaultLocalhost = "http://localhost"
 
 type proxy struct {
-	Port int `json:"port"`
+	Port   int    `json:"port"`
+	TLSCrt string `json:"tls_crt,omitempty"`
+	TLSKey string `json:"tls_key,omitempty"`
 }
 
 type service struct {

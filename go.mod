@@ -2,4 +2,7 @@ module github.com/monkeydioude/capybara
 
 go 1.12
 
-require github.com/monkeydioude/tools v0.0.0-20190104233136-9cf139acb9b4
+require (
+	github.com/monkeydioude/tools v0.0.0-20190104233136-9cf139acb9b4
+	golang.org/x/crypto v0.11.0 // indirect
+)
