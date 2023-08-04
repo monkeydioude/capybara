@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/monkeydioude/capybara/pkg/capybara"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 func startingLog(conf *capybara.Config) {
@@ -48,10 +49,25 @@ func main() {
 	serve := func() error {
 		return server.ListenAndServe()
 	}
-	if conf.Proxy.TLSCrt != "" && conf.Proxy.TLSKey != "" {
+
+	if conf.Proxy.TLSHost != "" {
+		cacheDir := "certs"
+		if conf.Proxy.TLSCacheDir != "" {
+			cacheDir = conf.Proxy.TLSCacheDir
+		}
+		certManager := autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			Email:      "monkeydioude@gmail.com",
+			HostPolicy: autocert.HostWhitelist(conf.Proxy.TLSHost), //Your domain here
+			Cache:      autocert.DirCache(cacheDir),                //Folder for storing certificates
+		}
+		server.TLSConfig = certManager.TLSConfig()
+		server.Addr = ":https"
 
 		serve = func() error {
-			return server.ListenAndServeTLS(conf.Proxy.TLSCrt, conf.Proxy.TLSKey)
+			go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
+
+			return server.ListenAndServeTLS("", "")
 		}
 	}
 
