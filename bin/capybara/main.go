@@ -65,7 +65,7 @@ func main() {
 		server.Addr = ":https"
 
 		serve = func() error {
-			go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
+			go http.ListenAndServe(fmt.Sprintf(":%d", conf.Proxy.Port), certManager.HTTPHandler(nil))
 
 			return server.ListenAndServeTLS("", "")
 		}
