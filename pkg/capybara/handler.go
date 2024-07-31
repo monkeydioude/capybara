@@ -70,6 +70,11 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.RequestURI == "/healthcheck" {
+		HealthcheckHandler(rw, r)
+		return
+	}
+
 	for _, service := range h.services {
 		// Unspecified method in json. Using default
 		if service.Method == "" {
