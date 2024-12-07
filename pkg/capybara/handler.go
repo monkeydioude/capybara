@@ -1,13 +1,15 @@
 package capybara
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/monkeydioude/capybara/pkg/capybara/grpc"
 )
 
 const defaultMethod = "regex"
@@ -19,14 +21,6 @@ type proxy struct {
 	TLSHost     string `json:"tls_host,omitempty"`
 }
 
-type service struct {
-	ID       string `json:"id"`
-	Pattern  string `json:"pattern"`
-	Method   string `json:"method"`
-	Port     int    `json:"port"`
-	Redirect string `json:"redirect"`
-}
-
 // Config handles the config fed to Capybara.
 // Todo: config should check itself (<insert Ice Cube joke>) on startup
 type Config struct {
@@ -36,8 +30,13 @@ type Config struct {
 
 // Handler take care of the matching pattern against route part of Capybara.
 type Handler struct {
-	services []*service
-	Methods  Methods
+	services    []*service
+	Methods     Methods
+	certificate *tls.Certificate
+}
+
+func (h *Handler) SetCertificate(cert *tls.Certificate) {
+	h.certificate = cert
 }
 
 // NewHandler gets feed a map of *service and "procude" a *Handler.
@@ -63,6 +62,29 @@ func buildURL(p int) string {
 	return b.String()
 }
 
+func (h *Handler) handleProtocol(rw http.ResponseWriter, r *http.Request, service *service, u *url.URL) error {
+	if service == nil || u == nil {
+		return ErrNilPointer
+	}
+	if grpc.IsGRPCRequest(r) {
+		grpcServer, err := grpc.NewGRPCServer(h.certificate)
+		if err != nil {
+			return err
+		}
+		grpcServer.ServeHTTP(rw, r)
+	} else {
+		rp, err := service.NewHttpReverseProxy(u)
+		if err != nil {
+			return err
+		}
+		if service.Redirect != "" {
+			r.URL.Path = service.Redirect
+		}
+		rp.ServeHTTP(rw, r)
+	}
+	return nil
+}
+
 // ServeHTTP implements net/http/Handler interface
 func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if r.RequestURI == "/favicon.ico" {
@@ -76,10 +98,8 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, service := range h.services {
-		// Unspecified method in json. Using default
-		if service.Method == "" {
-			service.Method = defaultMethod
-		}
+		service.FixMethod()
+		service.FixProtocol()
 
 		if !h.Methods.Exists(service.Method) {
 			log.Printf("[WARN] Could not find method %s in methods' map", service.Method)
@@ -87,6 +107,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := h.Methods[service.Method](service.Pattern, r.RequestURI); err != nil {
+			log.Printf("[WARN] Could not serve method %s with pattern %s", service.Method, service.Pattern)
 			continue
 		}
 
@@ -96,11 +117,10 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		rp := httputil.NewSingleHostReverseProxy(u)
-		if service.Redirect != "" {
-			r.URL.Path = service.Redirect
+		if err := h.handleProtocol(rw, r, service, u); err != nil {
+			go Log(fmt.Sprintf("[ERR ] Could not handle request http://localhost:%d, with url %s", service.Port, u))
+			continue
 		}
-		rp.ServeHTTP(rw, r)
 		return
 	}
 

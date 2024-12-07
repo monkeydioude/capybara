@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -52,22 +53,39 @@ func main() {
 
 	if conf.Proxy.TLSHost != "" {
 		cacheDir := "certs"
-		if conf.Proxy.TLSCacheDir != "" {
-			cacheDir = conf.Proxy.TLSCacheDir
-		}
-		certManager := autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			Email:      "monkeydioude@gmail.com",
-			HostPolicy: autocert.HostWhitelist(conf.Proxy.TLSHost), //Your domain here
-			Cache:      autocert.DirCache(cacheDir),                //Folder for storing certificates
-		}
-		server.TLSConfig = certManager.TLSConfig()
-		server.Addr = ":https"
+		if conf.Proxy.TLSHost != "localhost" {
+			if conf.Proxy.TLSCacheDir != "" {
+				cacheDir = conf.Proxy.TLSCacheDir
+			}
+			certManager := autocert.Manager{
+				Prompt:     autocert.AcceptTOS,
+				Email:      "monkeydioude@gmail.com",
+				HostPolicy: autocert.HostWhitelist(conf.Proxy.TLSHost), //Your domain here
+				Cache:      autocert.DirCache(cacheDir),                //Folder for storing certificates
+			}
+			server.TLSConfig = certManager.TLSConfig()
+			cert, err := server.TLSConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: conf.Proxy.TLSHost})
+			if err != nil {
+				log.Fatalf("could not retrieve any cert: %s", err)
+			}
+			handler.SetCertificate(cert)
+			server.Addr = ":https"
+			// handler
+			serve = func() error {
+				go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
 
-		serve = func() error {
-			go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
+				return server.ListenAndServeTLS("", "")
+			}
+		} else {
+			cert, err := tls.LoadX509KeyPair("certs/cert.pem", "certs/key.pem")
+			if err != nil {
+				log.Fatalf("could not retrieve any localhost cert: %s", err)
+			}
+			handler.SetCertificate(&cert)
+			serve = func() error {
 
-			return server.ListenAndServeTLS("", "")
+				return server.ListenAndServeTLS("certs/cert.pem", "certs/key.pem")
+			}
 		}
 	}
 

@@ -15,10 +15,8 @@ type Methods map[string]Method
 
 // Exists checks if method is set in map
 func (ms Methods) Exists(name string) bool {
-	if _, ok := ms[name]; !ok {
-		return false
-	}
-	return true
+	_, ok := ms[name]
+	return ok
 }
 
 // Add a method to the map
@@ -36,5 +34,5 @@ func str(pattern, URI string) error {
 	if len(pattern) <= len(URI) && pattern == URI[:len(pattern)] {
 		return nil
 	}
-	return fmt.Errorf("Could not string match %s against %s", pattern, URI)
+	return fmt.Errorf("could not string match %s against %s", pattern, URI)
 }

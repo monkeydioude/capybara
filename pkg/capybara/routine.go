@@ -2,18 +2,24 @@ package capybara
 
 import (
 	"log"
+	"sync"
 	"time"
 )
 
 const UPDATE_SERVICE_TIMER = 30 * time.Second
 
-func UpdateServicesRoutine(h *Handler, path string, d time.Duration) {
-	timer := time.NewTimer(d)
-	<-timer.C
+var mutex sync.Mutex
 
-	c := NewConfig(path)
-	h.services = c.Services
-	UpdateServicesRoutine(h, path, d)
+func UpdateServicesRoutine(h *Handler, path string, d time.Duration) {
+	for {
+		timer := time.NewTimer(d)
+		<-timer.C
+
+		c := NewConfig(path)
+		mutex.Lock()
+		h.services = c.Services
+		mutex.Unlock()
+	}
 }
 
 func Log(msg string) {
