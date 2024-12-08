@@ -1,5 +1,5 @@
 config.json
 vendor/
 bin/capybara/capybara
-bin/capybara/localhost.crt
-bin/capybara/localhost.key
+bin/capybara/certs/
+bin/capybara/certs/

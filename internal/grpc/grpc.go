@@ -1,11 +1,11 @@
 package grpc
 
 import (
-	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/monkeydioude/capybara/internal/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -13,21 +13,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func NewGRPCServer(cert *tls.Certificate) (*grpc.Server, error) {
-	if cert == nil {
-		return nil, fmt.Errorf("NewGRPCServer: %w", ErrNilPointer)
-	}
-	return grpc.NewServer(
-		grpc.Creds(credentials.NewServerTLSFromCert(cert)),
-		grpc.UnknownServiceHandler((&CatchAllProxy{}).Proxy),
-	), nil
+// CatchAllProxy intercepts all incoming gRPC requests and forwards them to the backend
+type CatchAllProxy struct {
+	BackendPort int32
+	Credentials credentials.TransportCredentials
 }
 
-// CatchAllProxy intercepts all incoming gRPC requests and forwards them to the backend
-type CatchAllProxy struct{}
-
 // Proxy implements the generic proxy functionality
-func (p *CatchAllProxy) Proxy(srv interface{}, stream grpc.ServerStream) error {
+func (p *CatchAllProxy) Proxy(srv any, stream grpc.ServerStream) error {
 	// Extract the full method name (e.g., /ServiceName/MethodName)
 	methodName, ok := grpc.MethodFromServerStream(stream)
 	if !ok {
@@ -40,24 +33,24 @@ func (p *CatchAllProxy) Proxy(srv interface{}, stream grpc.ServerStream) error {
 	log.Printf("Incoming metadata: %v", md)
 
 	// Backend server address
-	backendAddress := "localhost:9393" // Replace with dynamic resolution if needed
+	backendAddress := fmt.Sprintf("localhost:%d", p.BackendPort) // Replace with dynamic resolution if needed
 
 	// // TLS credentials for the backend connection
-	creds := credentials.NewTLS(&tls.Config{
-		InsecureSkipVerify: true, // Skip verification for testing; remove this in production
-	})
+	// creds := credentials.NewTLS(&tls.Config{
+	// 	InsecureSkipVerify: true, // Skip verification for testing; remove this in production
+	// })
 
-	// creds, err := credentials.NewServerTLSFromFile("./certs/cert.pem", "./certs/key.pem")
 	// if err != nil {
 	// 	return status.Errorf(codes.Unavailable, "Unable to connect to backend: %v", err)
 	// }
 	// Dial the backend server using grpc.NewClient
 	conn, err := grpc.NewClient(
 		backendAddress,
-		grpc.WithTransportCredentials(creds),
+		grpc.WithTransportCredentials(p.Credentials),
 	)
 	if err != nil {
-		return status.Errorf(codes.Unavailable, "Unable to connect to backend: %v", err)
+		log.Printf("[ERR ] %s: %v", errors.ErrUnableToConnectToBackend, err)
+		return status.Errorf(codes.Unavailable, "%s: %v", errors.ErrUnableToConnectToBackend, err)
 	}
 	defer conn.Close()
 
@@ -72,7 +65,8 @@ func (p *CatchAllProxy) Proxy(srv interface{}, stream grpc.ServerStream) error {
 		methodName,
 	)
 	if err != nil {
-		return status.Errorf(codes.Unavailable, "Unable to create client stream: %v", err)
+		log.Printf("[ERR ] %s: %v", errors.ErrUnableToCreateClientStream, err)
+		return status.Errorf(codes.Unavailable, "%a: %v", errors.ErrUnableToCreateClientStream, err)
 	}
 
 	// Proxy all requests and responses between the client and backend

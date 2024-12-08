@@ -1,15 +1,15 @@
 package capybara
 
 import (
-	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 
-	"github.com/monkeydioude/capybara/pkg/capybara/grpc"
+	"github.com/monkeydioude/capybara/internal/errors"
+	"github.com/monkeydioude/capybara/internal/tools"
+	"google.golang.org/grpc/credentials"
 )
 
 const defaultMethod = "regex"
@@ -32,11 +32,11 @@ type Config struct {
 type Handler struct {
 	services    []*service
 	Methods     Methods
-	certificate *tls.Certificate
+	credentials credentials.TransportCredentials
 }
 
-func (h *Handler) SetCertificate(cert *tls.Certificate) {
-	h.certificate = cert
+func (h *Handler) SetCredentials(creds credentials.TransportCredentials) {
+	h.credentials = creds
 }
 
 // NewHandler gets feed a map of *service and "procude" a *Handler.
@@ -52,28 +52,30 @@ func NewHandler(services []*service) *Handler {
 	}
 }
 
-func buildURL(p int) string {
+func buildURL(p int32) string {
 	b := &strings.Builder{}
 
 	b.WriteString(defaultLocalhost)
 	b.WriteString(":")
-	b.WriteString(strconv.Itoa(p))
+	b.WriteString(tools.I32toa(p))
 
 	return b.String()
 }
 
 func (h *Handler) handleProtocol(rw http.ResponseWriter, r *http.Request, service *service, u *url.URL) error {
 	if service == nil || u == nil {
-		return ErrNilPointer
+		return errors.ErrNilPointer
 	}
-	if grpc.IsGRPCRequest(r) {
-		grpcServer, err := grpc.NewGRPCServer(h.certificate)
+
+	switch service.Protocol {
+	case RpcProtocol:
+		grpcServer, err := NewGRPCServer(h.credentials, service)
 		if err != nil {
 			return err
 		}
 		grpcServer.ServeHTTP(rw, r)
-	} else {
-		rp, err := service.NewHttpReverseProxy(u)
+	default:
+		rp, err := NewHttpReverseProxy(u)
 		if err != nil {
 			return err
 		}
@@ -105,9 +107,10 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			log.Printf("[WARN] Could not find method %s in methods' map", service.Method)
 			continue
 		}
-
 		if err := h.Methods[service.Method](service.Pattern, r.RequestURI); err != nil {
-			log.Printf("[WARN] Could not serve method %s with pattern %s", service.Method, service.Pattern)
+			continue
+		}
+		if !service.Protocol.Matches(FindOutProtocol(r)) {
 			continue
 		}
 
@@ -123,7 +126,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-
+	log.Printf("[WARN] Could not serve %s %s", r.Method, r.URL)
 	http.NotFound(rw, r)
 }
 
