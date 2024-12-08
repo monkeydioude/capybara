@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -36,9 +37,9 @@ func (p *CatchAllProxy) Proxy(srv any, stream grpc.ServerStream) error {
 	backendAddress := fmt.Sprintf("localhost:%d", p.BackendPort) // Replace with dynamic resolution if needed
 
 	// // TLS credentials for the backend connection
-	// creds := credentials.NewTLS(&tls.Config{
-	// 	InsecureSkipVerify: true, // Skip verification for testing; remove this in production
-	// })
+	creds := credentials.NewTLS(&tls.Config{
+		InsecureSkipVerify: true, // Skip verification for testing; remove this in production
+	})
 
 	// if err != nil {
 	// 	return status.Errorf(codes.Unavailable, "Unable to connect to backend: %v", err)
@@ -46,7 +47,7 @@ func (p *CatchAllProxy) Proxy(srv any, stream grpc.ServerStream) error {
 	// Dial the backend server using grpc.NewClient
 	conn, err := grpc.NewClient(
 		backendAddress,
-		grpc.WithTransportCredentials(p.Credentials),
+		grpc.WithTransportCredentials(creds),
 	)
 	if err != nil {
 		log.Printf("[ERR ] %s: %v", errors.ErrUnableToConnectToBackend, err)
