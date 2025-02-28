@@ -19,8 +19,9 @@ const defaultProtocol = HttpProtocol
 type Protocol string
 
 const (
-	HttpProtocol Protocol = "http"
-	RpcProtocol  Protocol = "rpc"
+	HttpProtocol      Protocol = "http"
+	RpcProtocol       Protocol = "rpc"
+	WebSocketProtocol Protocol = "ws"
 
 	// Http3Protocol = "http3"
 )
@@ -38,6 +39,18 @@ func FindOutProtocol(r *http.Request) Protocol {
 		return RpcProtocol
 	}
 	return defaultProtocol
+}
+
+func NewWebSocketProxy(url *url.URL) (*httputil.ReverseProxy, error) {
+	if url == nil {
+		return nil, fmt.Errorf("%w: %w", errors.ErrServiceHandleHTTP, errors.ErrNilPointer)
+	}
+	rp := httputil.NewSingleHostReverseProxy(url)
+	rp.Director = func(req *http.Request) {
+		req.Header.Set("Connection", "Upgrade")
+		req.Header.Set("Upgrade", "websocket")
+	}
+	return rp, nil
 }
 
 func NewHttpReverseProxy(url *url.URL) (*httputil.ReverseProxy, error) {

@@ -68,6 +68,15 @@ func (h *Handler) handleProtocol(rw http.ResponseWriter, r *http.Request, servic
 	}
 
 	switch service.Protocol {
+	case WebSocketProtocol:
+		rp, err := NewWebSocketProxy(u)
+		if err != nil {
+			return err
+		}
+		if service.Redirect != "" {
+			r.URL.Path = service.Redirect
+		}
+		rp.ServeHTTP(rw, r)
 	case RpcProtocol:
 		grpcServer, err := NewGRPCServer(h.credentials, service)
 		if err != nil {
