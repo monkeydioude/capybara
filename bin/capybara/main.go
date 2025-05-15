@@ -53,6 +53,7 @@ func handleTLS(conf *capybara.Config, server *http.Server, handler *capybara.Han
 		HostPolicy: autocert.HostWhitelist(conf.Proxy.TLSHost), //Your domain here
 		Cache:      autocert.DirCache(cacheDir),                //Folder for storing certificates
 	}
+	go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
 	server.TLSConfig = certManager.TLSConfig()
 	cert, err := server.TLSConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: conf.Proxy.TLSHost})
 	if err != nil {
@@ -63,7 +64,6 @@ func handleTLS(conf *capybara.Config, server *http.Server, handler *capybara.Han
 	server.Addr = ":https"
 
 	return func() error {
-		go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
 		return server.ListenAndServeTLS("", "")
 	}
 }
