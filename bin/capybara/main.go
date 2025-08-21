@@ -57,17 +57,7 @@ func handleTLS(conf *capybara.Config, server *http.Server, handler *capybara.Han
 	}
 	go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
 	server.TLSConfig = certManager.TLSConfig()
-	// for _, certHost := range certHosts {
-	// 	cert, err := server.TLSConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: certHost})
-	// 	if err != nil {
-	// 		log.Fatalf("could not retrieve any cert: %s", err)
-	// 	}
-
-	// 	handler.SetCredentials(credentials.NewServerTLSFromCert(cert))
-	// }
 	server.Addr = ":https"
-
-	// server.TLSConfig.GetCertificate = certManager.GetCertificate
 
 	return func() error {
 		return server.ListenAndServeTLS("", "")
