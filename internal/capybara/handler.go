@@ -18,7 +18,9 @@ const defaultLocalhost = "http://localhost"
 type proxy struct {
 	Port        int    `json:"port"`
 	TLSCacheDir string `json:"tls_cache_dir,omitempty"`
-	TLSHost     string `json:"tls_host,omitempty"`
+	// @deprecated: use TLSHosts
+	TLSHost  string   `json:"tls_host,omitempty"`
+	TLSHosts []string `json:"tls_hosts,omitempty"`
 }
 
 // Config handles the config fed to Capybara.

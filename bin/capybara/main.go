@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -28,12 +29,13 @@ func startingLog(conf *capybara.Config) {
 }
 
 func handleTLS(conf *capybara.Config, server *http.Server, handler *capybara.Handler) func() error {
-	if conf.Proxy.TLSHost == "" {
+	certHosts := append(conf.Proxy.TLSHosts, conf.Proxy.TLSHost)
+	if len(certHosts) == 0 {
 		return func() error {
 			return server.ListenAndServe()
 		}
 	}
-	if conf.Proxy.TLSHost == "localhost" {
+	if slices.Contains(certHosts, "localhost") {
 		server.TLSConfig = &tls.Config{
 			InsecureSkipVerify: true,
 		}
@@ -50,18 +52,22 @@ func handleTLS(conf *capybara.Config, server *http.Server, handler *capybara.Han
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		Email:      "monkeydioude@gmail.com",
-		HostPolicy: autocert.HostWhitelist(conf.Proxy.TLSHost), //Your domain here
-		Cache:      autocert.DirCache(cacheDir),                //Folder for storing certificates
+		HostPolicy: autocert.HostWhitelist(certHosts...), //Your domain here
+		Cache:      autocert.DirCache(cacheDir),          //Folder for storing certificates
 	}
 	go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
 	server.TLSConfig = certManager.TLSConfig()
-	cert, err := server.TLSConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: conf.Proxy.TLSHost})
-	if err != nil {
-		log.Fatalf("could not retrieve any cert: %s", err)
-	}
+	// for _, certHost := range certHosts {
+	// 	cert, err := server.TLSConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: certHost})
+	// 	if err != nil {
+	// 		log.Fatalf("could not retrieve any cert: %s", err)
+	// 	}
 
-	handler.SetCredentials(credentials.NewServerTLSFromCert(cert))
+	// 	handler.SetCredentials(credentials.NewServerTLSFromCert(cert))
+	// }
 	server.Addr = ":https"
+
+	// server.TLSConfig.GetCertificate = certManager.GetCertificate
 
 	return func() error {
 		return server.ListenAndServeTLS("", "")
