@@ -8,9 +8,33 @@ Listen to a port and redirect any url matching a pattern to another port.
 
 I made this as a solution for hosting multiple services on the same "url" without relying on having a port straight in the URL. Some companies/organizations block any request to a url using a port as one of their security measures.
 
-**First parameter must be the path to your config json file**
+**First parameter must be the path to your json/yaml config file**
 
 Example of config.json
+
+```
+{
+    "proxy": {
+        "port": 80
+    },
+    "services": [
+        {
+            "id": "duck",
+            "pattern": "^/kwak/",
+            "port": 9090
+        },
+        {
+            "id": "stoned",
+            "method": "string",
+            "pattern": "/jesus",
+            "port": 9091
+        }
+    ]    
+}
+
+```
+
+Example of config.yaml
 
 ```
 {
@@ -50,5 +74,4 @@ This project still needs:
 
 
 This project might need:
-- Redirect HTTPS ?
 - Better logging ?

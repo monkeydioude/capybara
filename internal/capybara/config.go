@@ -16,8 +16,8 @@ func NewConfig(p string) *Config {
 	}
 	c := &Config{}
 
-	if err = json.Unmarshal(d, &c); err != nil {
-		if err = yaml.Unmarshal(d, &c); err != nil {
+	if err = json.Unmarshal(d, c); err != nil {
+		if err = yaml.Unmarshal(d, c); err != nil {
 			log.Fatalf("[ERR ] Could not Unmarshal config, reason: %s", err)
 		}
 	}

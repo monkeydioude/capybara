@@ -16,18 +16,18 @@ const defaultMethod = "regex"
 const defaultLocalhost = "http://localhost"
 
 type proxy struct {
-	Port        int    `json:"port"`
-	TLSCacheDir string `json:"tls_cache_dir,omitempty"`
+	Port        int    `json:"port" yaml:"port"`
+	TLSCacheDir string `json:"tls_cache_dir,omitempty" yaml:"tls_cache_dir,omitempty"`
 	// @deprecated: use TLSHosts
-	TLSHost  string   `json:"tls_host,omitempty"`
-	TLSHosts []string `json:"tls_hosts,omitempty"`
+	TLSHost  string   `json:"tls_host,omitempty" yaml:"tls_host,omitempty"`
+	TLSHosts []string `json:"tls_hosts,omitempty" yaml:"tls_hosts,omitempty"`
 }
 
 // Config handles the config fed to Capybara.
 // Todo: config should check itself (<insert Ice Cube joke>) on startup
 type Config struct {
-	Proxy    proxy      `json:"proxy"`
-	Services []*service `json:"services"`
+	Proxy    proxy      `json:"proxy" yaml:"proxy"`
+	Services []*service `json:"services" yaml:"services"`
 }
 
 // Handler take care of the matching pattern against route part of Capybara.
