@@ -1,6 +1,6 @@
 module github.com/monkeydioude/capybara
 
-go 1.22
+go 1.25
 
 toolchain go1.23.1
 
@@ -13,6 +13,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/net v0.29.0 // indirect

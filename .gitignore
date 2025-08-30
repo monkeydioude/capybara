@@ -1,4 +1,5 @@
 config.json
+config.yaml
 vendor/
 bin/capybara/capybara
 bin/capybara/certs/
