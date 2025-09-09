@@ -78,7 +78,7 @@ func (p *CatchAllProxy) Proxy(srv any, stream grpc.ServerStream) error {
 	go func() {
 		forwardStream(clientStream, stream, errCh)
 	}()
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		if err := <-errCh; err != nil {
 			return err
 		}

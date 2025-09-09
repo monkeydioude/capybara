@@ -1,6 +1,6 @@
 ### CAPYBARAS ARE LOVE
 
-[![Build Status](https://travis-ci.org/monkeydioude/capybara.svg?branch=master)](https://travis-ci.org/monkeydioude/capybara)
+[![Go](https://github.com/monkeydioude/capybara/actions/workflows/go.yml/badge.svg)](https://github.com/monkeydioude/capybara/actions/workflows/go.yml)
 
 Simple Reverse-Proxy written in go.
 
@@ -38,22 +38,17 @@ Example of config.yaml
 
 ```
 {
-    "proxy": {
-        "port": 80
-    },
-    "services": [
-        {
-            "id": "duck",
-            "pattern": "^/kwak/",
-            "port": 9090
-        },
-        {
-            "id": "stoned",
-            "method": "string",
-            "pattern": "/jesus",
-            "port": 9091
-        }
-    ]    
+    proxy:
+        port: 80
+        tls_hosts:
+            - localhost
+
+    services:
+        -   id: bypasscors
+            method: string
+            pattern: /bypasscors
+            port: 8080
+
 }
 
 ```

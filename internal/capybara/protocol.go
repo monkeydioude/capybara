@@ -34,6 +34,10 @@ func (p Protocol) Matches(proto Protocol) bool {
 	return p == proto
 }
 
+func (p Protocol) String() string {
+	return string(p)
+}
+
 func FindOutProtocol(r *http.Request) Protocol {
 	if capyGrpc.IsGRPCRequest(r) {
 		return RpcProtocol

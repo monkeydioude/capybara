@@ -1,8 +1,7 @@
 package capybara
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -109,38 +108,54 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		HealthcheckHandler(rw, r)
 		return
 	}
+	prot := FindOutProtocol(r)
+	slog.Info("Incoming request", "method", r.Method, "URL", r.URL, "protocol", prot)
 
 	for _, service := range h.services {
 		service.FixMethod()
 		service.FixProtocol()
 
+		if !service.MatchHost(r.Host) {
+			slog.Warn("Could not match host", "service.Host", service.Method, "request.Host", r.Host)
+			continue
+		}
+
 		if !h.Methods.Exists(service.Method) {
-			log.Printf("[WARN] Could not find method %s in methods' map", service.Method)
+			slog.Warn("Could not find method", "method", service.Method)
 			continue
 		}
 		if err := h.Methods[service.Method](service.Pattern, r.RequestURI); err != nil {
 			continue
 		}
-		if !service.Protocol.Matches(FindOutProtocol(r)) {
+		if !service.Protocol.Matches(prot) {
+			slog.Warn("Could not match protocol", "protocol", prot)
 			continue
 		}
 
-		u, err := url.Parse(buildURL(service.Port))
+		serURL := buildURL(service.Port)
+		u, err := url.Parse(serURL)
 		if err != nil {
-			go Log(fmt.Sprintf("[WARN] Could not parse url http://localhost:%d", service.Port))
+			slog.Warn("Could not parse url", "URL", serURL)
 			continue
+		}
+
+		if service.Schema != nil && !service.Schema.Match(r.Method, r.RequestURI) {
+			slog.Warn("Could not match schema", "method", r.Method, "URL", r.RequestURI)
+			break
 		}
 
 		if err := h.handleProtocol(rw, r, service, u); err != nil {
-			go Log(fmt.Sprintf("[ERR ] Could not handle request http://localhost:%d, with url %s", service.Port, u))
-			continue
+			slog.Error("Could not handle request", "port", service.Port, "URL", u, "error", err.Error())
+			internalServerError(rw)
+			return
 		}
 		return
 	}
-	log.Printf("[WARN] Could not serve %s %s", r.Method, r.URL)
+	slog.Warn("Could not serve", "method", r.Method, "URL", r.URL, "protocol", prot)
 	http.NotFound(rw, r)
 }
 
-func (s *service) String() string {
-	return fmt.Sprintf("\"%s\": %s => :%d", s.ID, s.Pattern, s.Port)
+func internalServerError(rw http.ResponseWriter) {
+	rw.WriteHeader(http.StatusInternalServerError)
+	rw.Write([]byte("Internal Server Error"))
 }

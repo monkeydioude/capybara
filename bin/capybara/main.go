@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -35,7 +34,8 @@ func handleTLS(conf *capybara.Config, server *http.Server, handler *capybara.Han
 			return server.ListenAndServe()
 		}
 	}
-	if slices.Contains(certHosts, "localhost") {
+	proCertFn := checkProtectedCerts(certHosts, server)
+	if proCertFn != nil {
 		server.TLSConfig = &tls.Config{
 			InsecureSkipVerify: true,
 		}
