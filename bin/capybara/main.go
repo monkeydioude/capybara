@@ -5,11 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/monkeydioude/capybara/internal/capybara"
+	"github.com/oklog/run"
 	"golang.org/x/crypto/acme/autocert"
 	"google.golang.org/grpc/credentials"
 )
@@ -23,15 +25,23 @@ func startingLog(conf *capybara.Config) {
 		b.WriteString(s.String())
 		b.WriteString("\n")
 	}
-
 	log.Printf("[INFO] Available redirection services:\n %s", b.String())
+	log.Printf("[INFO] Healthcheck available at /_healthcheck")
 }
 
-func handleTLS(conf *capybara.Config, server *http.Server, handler *capybara.Handler) func() error {
-	certHosts := append(conf.Proxy.TLSHosts, conf.Proxy.TLSHost)
+func handleTLS(
+	g *run.Group,
+	conf *capybara.Config,
+	server *http.Server,
+	handler *capybara.Handler,
+) func() error {
+	var certHosts []string
+	if conf.Proxy.TLSHost != "" {
+		certHosts = append(conf.Proxy.TLSHosts, conf.Proxy.TLSHost)
+	}
 	if len(certHosts) == 0 {
 		return func() error {
-			return server.ListenAndServe()
+			return http.ListenAndServe(fmt.Sprintf(":%d", conf.Proxy.Port), handler)
 		}
 	}
 	proCertFn := checkProtectedCerts(certHosts, server)
@@ -51,11 +61,15 @@ func handleTLS(conf *capybara.Config, server *http.Server, handler *capybara.Han
 	}
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
-		Email:      "monkeydioude@gmail.com",
-		HostPolicy: autocert.HostWhitelist(certHosts...), //Your domain here
-		Cache:      autocert.DirCache(cacheDir),          //Folder for storing certificates
+		Email:      conf.Proxy.Email,
+		HostPolicy: autocert.HostWhitelist(certHosts...),
+		Cache:      autocert.DirCache(cacheDir),
 	}
-	go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
+	g.Add(func() error {
+		return http.ListenAndServe(":http", certManager.HTTPHandler(nil))
+	}, func(err error) {
+		slog.Error("Stoping http server", "error", err)
+	})
 	server.TLSConfig = certManager.TLSConfig()
 	server.Addr = ":https"
 
@@ -73,16 +87,27 @@ func main() {
 
 	conf := capybara.NewConfig(*cp)
 	handler := capybara.NewHandler(conf.Services)
-	go capybara.UpdateServicesRoutine(handler, *cp, capybara.UPDATE_SERVICE_TIMER)
+	g := &run.Group{}
+	g.Add(func() error {
+		capybara.UpdateServicesRoutine(handler, *cp, capybara.UPDATE_SERVICE_TIMER)
+		return nil
+	}, func(err error) {
+		slog.Error("Stoping updating services", "error", err)
+	})
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%d", conf.Proxy.Port),
 		Handler:        handler,
 		IdleTimeout:    120 * time.Second, // Prevent idle connections from closing prematurely
 		MaxHeaderBytes: 1 << 20,
 	}
-	serve := handleTLS(conf, server, handler)
-	startingLog(conf)
-	if err := serve(); err != nil {
-		log.Fatal(err)
+	serve := handleTLS(g, conf, server, handler)
+	g.Add(func() error {
+		startingLog(conf)
+		return serve()
+	}, func(err error) {
+		slog.Error("Stoping server", "error", err)
+	})
+	if err := g.Run(); err != nil {
+		slog.Error("Stoping capybara", "error", err)
 	}
 }

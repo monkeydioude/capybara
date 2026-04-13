@@ -20,6 +20,7 @@ type proxy struct {
 	// @deprecated: use TLSHosts
 	TLSHost  string   `json:"tls_host,omitempty" yaml:"tls_host,omitempty"`
 	TLSHosts []string `json:"tls_hosts,omitempty" yaml:"tls_hosts,omitempty"`
+	Email    string   `json:"email,omitempty" yaml:"email,omitempty"`
 }
 
 // Config handles the config fed to Capybara.
@@ -104,7 +105,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.RequestURI == "/healthcheck" {
+	if r.RequestURI == "/_healthcheck" {
 		HealthcheckHandler(rw, r)
 		return
 	}
