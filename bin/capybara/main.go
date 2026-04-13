@@ -35,9 +35,9 @@ func handleTLS(
 	server *http.Server,
 	handler *capybara.Handler,
 ) func() error {
-	var certHosts []string
+	certHosts := conf.Proxy.TLSHosts
 	if conf.Proxy.TLSHost != "" {
-		certHosts = append(conf.Proxy.TLSHosts, conf.Proxy.TLSHost)
+		certHosts = append(certHosts, conf.Proxy.TLSHost)
 	}
 	if len(certHosts) == 0 {
 		return func() error {
