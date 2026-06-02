@@ -76,7 +76,7 @@ func (h *Handler) handleProtocol(rw http.ResponseWriter, r *http.Request, servic
 			return err
 		}
 		if service.Redirect != "" {
-			r.URL.Path = service.Redirect
+			r.URL.Path = strings.Replace(r.URL.Path, service.Pattern, service.Redirect, 1)
 		}
 		rp.ServeHTTP(rw, r)
 	case RpcProtocol:
@@ -91,7 +91,7 @@ func (h *Handler) handleProtocol(rw http.ResponseWriter, r *http.Request, servic
 			return err
 		}
 		if service.Redirect != "" {
-			r.URL.Path = service.Redirect
+			r.URL.Path = strings.Replace(r.URL.Path, service.Pattern, service.Redirect, 1)
 		}
 		rp.ServeHTTP(rw, r)
 	}
