@@ -2,13 +2,14 @@ package capybara
 
 import (
 	"fmt"
-
-	"github.com/monkeydioude/tools"
+	"regexp"
+	"strings"
 )
 
 // Method defines the way of matching a pattern defined in the
-// config file against the URI requested
-type Method func(string, string) error
+// config file against the URI requested. On a match, it returns
+// the part of the URI following the pattern.
+type Method func(string, string) (string, error)
 
 // Methods is a map of Method with some comfy functions
 type Methods map[string]Method
@@ -24,15 +25,21 @@ func (ms Methods) Add(name string, method Method) {
 	ms[name] = method
 }
 
-func regex(pattern, URI string) error {
-	_, err := tools.MatchAndFind(pattern, URI)
-
-	return err
+func regex(pattern, URI string) (string, error) {
+	r, err := regexp.Compile(pattern)
+	if err != nil {
+		return "", err
+	}
+	loc := r.FindStringIndex(URI)
+	if loc == nil {
+		return "", fmt.Errorf("could not regex match %s against %s", pattern, URI)
+	}
+	return URI[loc[1]:], nil
 }
 
-func str(pattern, URI string) error {
-	if len(pattern) <= len(URI) && pattern == URI[:len(pattern)] {
-		return nil
+func str(pattern, URI string) (string, error) {
+	if rest, ok := strings.CutPrefix(URI, pattern); ok {
+		return rest, nil
 	}
-	return fmt.Errorf("could not string match %s against %s", pattern, URI)
+	return "", fmt.Errorf("could not string match %s against %s", pattern, URI)
 }

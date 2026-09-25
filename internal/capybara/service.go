@@ -7,14 +7,14 @@ import (
 )
 
 type service struct {
-	ID       string      `json:"id" yaml:"id"`
-	Pattern  string      `json:"pattern" yaml:"pattern"`
-	Method   string      `json:"method" yaml:"method"`
-	Port     int32       `json:"port" yaml:"port"`
-	Redirect string      `json:"redirect" yaml:"redirect"`
-	Protocol Protocol    `json:"protocol" yaml:"protocol"`
-	Host     string      `json:"host" yaml:"host"`
-	Schema   *ser.Schema `json:"schema" yaml:"schema"`
+	ID       string     `json:"id" yaml:"id"`
+	Pattern  string     `json:"pattern" yaml:"pattern"`
+	Method   string     `json:"method" yaml:"method"`
+	Port     int32      `json:"port" yaml:"port"`
+	Redirect string     `json:"redirect" yaml:"redirect"`
+	Protocol Protocol   `json:"protocol" yaml:"protocol"`
+	Host     string     `json:"host" yaml:"host"`
+	Routes   ser.Routes `json:"routes" yaml:"routes"`
 }
 
 func (s *service) FixProtocol() {

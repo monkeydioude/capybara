@@ -98,6 +98,17 @@ func (h *Handler) handleProtocol(rw http.ResponseWriter, r *http.Request, servic
 	return nil
 }
 
+// isPublicRoute checks the request against the service routes, which are relative
+// to the service pattern. The decoded path is used so that the query string is ignored
+// and encoded dot segments ("%2e%2e") can't sneak past.
+func (h *Handler) isPublicRoute(service *service, r *http.Request) bool {
+	if service.Routes == nil {
+		return true
+	}
+	route, err := h.Methods[service.Method](service.Pattern, r.URL.Path)
+	return err == nil && service.Routes.Allow(r.Method, route)
+}
+
 // ServeHTTP implements net/http/Handler interface
 func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if r.RequestURI == "/favicon.ico" {
@@ -125,7 +136,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			slog.Warn("Could not find method", "method", service.Method)
 			continue
 		}
-		if err := h.Methods[service.Method](service.Pattern, r.RequestURI); err != nil {
+		if _, err := h.Methods[service.Method](service.Pattern, r.RequestURI); err != nil {
 			continue
 		}
 		if !service.Protocol.Matches(prot) {
@@ -140,8 +151,8 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if service.Schema != nil && !service.Schema.Match(r.Method, r.RequestURI) {
-			slog.Warn("Could not match schema", "method", r.Method, "URL", r.RequestURI)
+		if !h.isPublicRoute(service, r) {
+			slog.Warn("Could not match public routes", "method", r.Method, "URL", r.URL)
 			break
 		}
 

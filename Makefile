@@ -9,3 +9,7 @@ certs:
 dev:
 	go install github.com/mitranim/gow@latest
 	gow run ./bin/capybara -c config.yaml
+
+.PHONY: test
+test:
+	go test -v ./...

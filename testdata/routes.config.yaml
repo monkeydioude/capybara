@@ -1,0 +1,13 @@
+proxy:
+  port: 88
+
+services:
+  - id: "bypasscors"
+    method: "string"
+    pattern: "/bypasscors"
+    port: 8080
+    host: spendbaker.com
+    routes:
+      users: [GET, POST, PATCH]
+      books: ["*"]
+      books*: [GET]
