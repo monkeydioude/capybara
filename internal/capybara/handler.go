@@ -35,6 +35,7 @@ type Handler struct {
 	services    []*service
 	Methods     Methods
 	credentials credentials.TransportCredentials
+	compress    Compression // applied to plain HTTP services, not to WebSocket nor gRPC ones
 }
 
 func (h *Handler) SetCredentials(creds credentials.TransportCredentials) {
@@ -51,7 +52,13 @@ func NewHandler(services []*service) *Handler {
 	return &Handler{
 		services: services,
 		Methods:  ms,
+		compress: NewCompression(),
 	}
+}
+
+// SetCompression replaces the compression of HTTP responses; nil sends them uncompressed.
+func (h *Handler) SetCompression(c Compression) {
+	h.compress = c
 }
 
 func buildURL(p int32) string {
@@ -93,7 +100,7 @@ func (h *Handler) handleProtocol(rw http.ResponseWriter, r *http.Request, servic
 		if service.Redirect != "" {
 			r.URL.Path = strings.Replace(r.URL.Path, service.Pattern, service.Redirect, 1)
 		}
-		rp.ServeHTTP(rw, r)
+		h.compressed(rp).ServeHTTP(rw, r)
 	}
 	return nil
 }
@@ -107,6 +114,14 @@ func (h *Handler) isPublicRoute(service *service, r *http.Request) bool {
 	}
 	route, err := h.Methods[service.Method](service.Pattern, r.URL.Path)
 	return err == nil && service.Routes.Allow(r.Method, route)
+}
+
+// compressed is next with the handler's compression, or next as it is without one.
+func (h *Handler) compressed(next http.Handler) http.Handler {
+	if h.compress == nil {
+		return next
+	}
+	return h.compress(next)
 }
 
 // ServeHTTP implements net/http/Handler interface
