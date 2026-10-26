@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 
 	"github.com/monkeydioude/capybara/internal/errors"
 	"github.com/monkeydioude/capybara/internal/tools"
@@ -32,7 +33,9 @@ type Config struct {
 
 // Handler take care of the matching pattern against route part of Capybara.
 type Handler struct {
-	services    []*service
+	// services is the routing table. SetServices replaces it as a whole and every request
+	// reads a snapshot, so a reload never races with in-flight requests.
+	services    atomic.Pointer[[]*service]
 	Methods     Methods
 	credentials credentials.TransportCredentials
 	compress    Compression // applied to plain HTTP services, not to WebSocket nor gRPC ones
@@ -49,11 +52,35 @@ func NewHandler(services []*service) *Handler {
 	ms.Add("string", str)
 	ms.Add("regex", regex)
 
-	return &Handler{
-		services: services,
+	h := &Handler{
 		Methods:  ms,
 		compress: NewCompression(),
 	}
+	h.SetServices(services)
+	return h
+}
+
+// SetServices replaces the routing table. Defaults (method, protocol) are filled in here,
+// once, instead of on every request.
+func (h *Handler) SetServices(services []*service) {
+	table := make([]*service, 0, len(services))
+	for _, s := range services {
+		if s == nil {
+			continue
+		}
+		s.FixMethod()
+		s.FixProtocol()
+		table = append(table, s)
+	}
+	h.services.Store(&table)
+}
+
+// Services is the current routing table.
+func (h *Handler) Services() []*service {
+	if table := h.services.Load(); table != nil {
+		return *table
+	}
+	return nil
 }
 
 // SetCompression replaces the compression of HTTP responses; nil sends them uncompressed.
@@ -138,10 +165,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	prot := FindOutProtocol(r)
 	slog.Info("Incoming request", "method", r.Method, "URL", r.URL, "protocol", prot)
 
-	for _, service := range h.services {
-		service.FixMethod()
-		service.FixProtocol()
-
+	for _, service := range h.Services() {
 		if !service.MatchHost(r.Host) {
 			slog.Warn("Could not match host", "service.Host", service.Method, "request.Host", r.Host)
 			continue

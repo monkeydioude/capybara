@@ -2,6 +2,7 @@ package capybara
 
 import (
 	"fmt"
+	"regexp"
 
 	ser "github.com/monkeydioude/capybara/internal/service"
 )
@@ -28,6 +29,36 @@ func (s *service) FixMethod() {
 	if s.Method == "" {
 		s.Method = defaultMethod
 	}
+}
+
+// validate refuses a service that would match nothing, match everything, or crash the proxy.
+func (s *service) validate(name string) []error {
+	var errs []error
+	if s.Pattern == "" {
+		errs = append(errs, fmt.Errorf("%s: pattern is required (an empty pattern would match every request)", name))
+	}
+	if s.Port < 1 || s.Port > 65535 {
+		errs = append(errs, fmt.Errorf("%s: port %d is not in 1-65535", name, s.Port))
+	}
+	method := s.Method
+	if method == "" {
+		method = defaultMethod
+	}
+	switch method {
+	case "string":
+	case "regex":
+		if _, err := regexp.Compile(s.Pattern); err != nil {
+			errs = append(errs, fmt.Errorf("%s: pattern is not a valid regex: %w", name, err))
+		}
+	default:
+		errs = append(errs, fmt.Errorf("%s: unknown method %q (string or regex)", name, s.Method))
+	}
+	switch s.Protocol {
+	case "", HttpProtocol, RpcProtocol, WebSocketProtocol:
+	default:
+		errs = append(errs, fmt.Errorf("%s: unknown protocol %q (http, rpc or ws)", name, s.Protocol))
+	}
+	return errs
 }
 
 func (s service) MatchHost(host string) bool {
