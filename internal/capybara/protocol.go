@@ -17,16 +17,16 @@ import (
 
 const defaultProtocol = HttpProtocol
 
-// backendTransport is shared by every HTTP and WebSocket service. It bounds what a slow or
-// stuck backend can hold (dial and response-header timeouts, connections per backend) and
-// ignores HTTP_PROXY, which must never apply to loopback backends.
+// backendTransport is shared by every HTTP and WebSocket service. It bounds what a backend
+// that never answers can hold (dial and response-header timeouts) and keeps a pool of idle
+// connections per backend. No cap on connections per backend: a cap makes the extra requests
+// wait silently, which is worse than letting the client connection cap do its job.
 var backendTransport = &http.Transport{
 	DialContext:           (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
 	MaxIdleConns:          256,
 	MaxIdleConnsPerHost:   64,
-	MaxConnsPerHost:       1024,
 	IdleConnTimeout:       90 * time.Second,
-	ResponseHeaderTimeout: 60 * time.Second,
+	ResponseHeaderTimeout: 5 * time.Minute, // long-polls included; a client that leaves cancels earlier
 	ExpectContinueTimeout: time.Second,
 }
 

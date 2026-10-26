@@ -20,13 +20,20 @@ func UpdateServicesRoutine(ctx context.Context, h *Handler, path string, d time.
 			return
 		case <-ticker.C:
 		}
-		c, err := LoadConfig(path)
-		if err != nil {
+		if err := reloadServices(h, path); err != nil {
 			slog.Error("Config reload failed, keeping the current services", "path", path, "error", err.Error())
-			continue
 		}
-		h.SetServices(c.Services)
 	}
+}
+
+// reloadServices loads path and swaps the routing table; on any error the table is untouched.
+func reloadServices(h *Handler, path string) error {
+	c, err := LoadConfig(path)
+	if err != nil {
+		return err
+	}
+	h.SetServices(c.Services)
+	return nil
 }
 
 func Log(msg string) {

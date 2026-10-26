@@ -34,8 +34,10 @@ func (s *service) FixMethod() {
 // validate refuses a service that would match nothing, match everything, or crash the proxy.
 func (s *service) validate(name string) []error {
 	var errs []error
-	if s.Pattern == "" {
-		errs = append(errs, fmt.Errorf("%s: pattern is required (an empty pattern would match every request)", name))
+	// An empty pattern matches every request: fine for a per-host catch-all, a config
+	// mistake otherwise (use pattern "/" for a deliberate catch-all).
+	if s.Pattern == "" && s.Host == "" {
+		errs = append(errs, fmt.Errorf("%s: pattern is required unless host is set", name))
 	}
 	if s.Port < 1 || s.Port > 65535 {
 		errs = append(errs, fmt.Errorf("%s: port %d is not in 1-65535", name, s.Port))

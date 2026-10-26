@@ -157,21 +157,19 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	// CONNECT would turn the connection into a tunnel.
 	switch r.Method {
 	case http.MethodConnect, http.MethodTrace:
-		rw.Header().Set("Connection", "close")
+		if r.ProtoMajor == 1 {
+			rw.Header().Set("Connection", "close")
+		}
 		http.Error(rw, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	switch r.URL.Path {
-	case "/favicon.ico", "/_healthcheck":
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			http.Error(rw, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		if r.URL.Path == "/_healthcheck" {
-			HealthcheckHandler(rw, r)
-			return
-		}
+	if r.RequestURI == "/favicon.ico" {
 		rw.WriteHeader(200)
+		return
+	}
+
+	if r.RequestURI == "/_healthcheck" {
+		HealthcheckHandler(rw, r)
 		return
 	}
 	prot := FindOutProtocol(r)

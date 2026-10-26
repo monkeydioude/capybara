@@ -29,21 +29,32 @@ const (
 	// and gRPC streams.
 	readHeaderTimeout = 10 * time.Second
 	idleTimeout       = 120 * time.Second
-	maxHeaderBytes    = 64 << 10
-	// maxConns caps the concurrent client connections of a listener: past it, accepts wait
-	// instead of the process running out of file descriptors.
-	maxConns        = 10000
-	acmeMaxConns    = 2000
-	shutdownTimeout = 10 * time.Second
+	maxHeaderBytes    = 1 << 20
+	shutdownTimeout   = 10 * time.Second
 )
 
 func newHTTP2Config() *http.HTTP2Config {
 	return &http.HTTP2Config{
-		MaxConcurrentStreams: 100,
-		PingTimeout:          15 * time.Second,
-		SendPingTimeout:      30 * time.Second,
-		WriteByteTimeout:     30 * time.Second,
+		PingTimeout:      15 * time.Second,
+		SendPingTimeout:  30 * time.Second,
+		WriteByteTimeout: 30 * time.Second,
 	}
+}
+
+// connLimit caps the concurrent connections of a listener at 1/share of the file
+// descriptor budget, so that a connection flood degrades into waiting accepts instead of
+// the process failing for lack of descriptors. Backend connections and the other listener
+// need the rest of the budget.
+func connLimit(share int) int {
+	var rl syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rl); err != nil || rl.Cur == 0 {
+		return 4096
+	}
+	budget := rl.Cur
+	if budget > 1<<30 {
+		budget = 1 << 30
+	}
+	return max(int(budget)/share, 1024)
 }
 
 func startingLog(conf *capybara.Config) {
@@ -70,20 +81,24 @@ func listenCapped(addr string, limit int) (net.Listener, error) {
 
 func serve(server *http.Server) func() error {
 	return func() error {
-		ln, err := listenCapped(server.Addr, maxConns)
+		limit := connLimit(4)
+		ln, err := listenCapped(server.Addr, limit)
 		if err != nil {
 			return err
 		}
+		slog.Info("Listening", "addr", server.Addr, "max_connections", limit)
 		return server.Serve(ln)
 	}
 }
 
 func serveTLS(server *http.Server, certFile, keyFile string) func() error {
 	return func() error {
-		ln, err := listenCapped(server.Addr, maxConns)
+		limit := connLimit(4)
+		ln, err := listenCapped(server.Addr, limit)
 		if err != nil {
 			return err
 		}
+		slog.Info("Listening", "addr", server.Addr, "max_connections", limit)
 		return server.ServeTLS(ln, certFile, keyFile)
 	}
 }
@@ -101,6 +116,7 @@ func shutdown(server *http.Server) func(error) {
 }
 
 func handleTLS(
+	ctx context.Context,
 	g *run.Group,
 	conf *capybara.Config,
 	server *http.Server,
@@ -142,13 +158,24 @@ func handleTLS(
 		IdleTimeout:       30 * time.Second,
 		MaxHeaderBytes:    16 << 10,
 	}
+	// :80 is a convenience (HTTP-01 challenges and the redirect): without it autocert still
+	// issues certificates over :443 (TLS-ALPN-01), so a failed bind must not stop the proxy.
 	g.Add(func() error {
-		ln, err := listenCapped(acmeServer.Addr, acmeMaxConns)
+		limit := connLimit(16)
+		ln, err := listenCapped(acmeServer.Addr, limit)
 		if err != nil {
-			return err
+			slog.Error("Could not listen on :80, continuing without the ACME/redirect listener", "error", err)
+			<-ctx.Done()
+			return nil
 		}
+		slog.Info("Listening", "addr", acmeServer.Addr, "max_connections", limit)
 		return acmeServer.Serve(ln)
-	}, shutdown(acmeServer))
+	}, func(error) {
+		// nothing to drain on :80: close it at once so that :443 starts draining right away
+		if err := acmeServer.Close(); err != nil {
+			slog.Error("Stopping server", "addr", acmeServer.Addr, "error", err)
+		}
+	})
 	server.TLSConfig = certManager.TLSConfig()
 	server.Addr = ":https"
 
@@ -191,7 +218,7 @@ func main() {
 		MaxHeaderBytes:    maxHeaderBytes,
 		HTTP2:             newHTTP2Config(),
 	}
-	serveFn := handleTLS(g, conf, server, handler)
+	serveFn := handleTLS(ctx, g, conf, server, handler)
 	g.Add(func() error {
 		startingLog(conf)
 		return serveFn()
