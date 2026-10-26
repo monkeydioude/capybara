@@ -197,9 +197,8 @@ func main() {
 		return serveFn()
 	}, shutdown(server))
 	err := g.Run()
-	var sig run.SignalError
-	if errors.As(err, &sig) {
-		slog.Info("Stopping capybara", "signal", sig.Signal)
+	if errors.Is(err, run.ErrSignal) {
+		slog.Info("Stopping capybara", "reason", err.Error())
 		return
 	}
 	if err != nil {

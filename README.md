@@ -90,6 +90,14 @@ Responses of HTTP services go out compressed, brotli or else gzip, as the client
 - responses to `Range` requests (partial downloads, video seeking)
 - WebSocket and gRPC services
 
+### Operations
+
+- `capybara -check -c config.yaml` validates a config file and exits 1 if it would be refused. A config is refused when it has no services, an entry is empty, a `pattern` is missing (an empty pattern would match every request), a regex pattern does not compile, a `port` is outside 1-65535, or a `method`/`protocol` is unknown. At startup a refused config is fatal; on the 30 s reload the error is logged and the current services stay in place. Run `-check` on the production file before replacing it.
+- Timeouts: 10 s to finish the TLS handshake and send the request headers, 120 s idle. Request bodies and responses are not bounded, so uploads, WebSocket and gRPC streams are not cut. Backends: 5 s to connect, 60 s to start answering, at most 1024 connections per backend. At most 10000 concurrent client connections per listener.
+- `CONNECT` and `TRACE` are refused with 405. `/_healthcheck` and `/favicon.ico` answer `GET` and `HEAD` only.
+- `SIGINT`/`SIGTERM` stop the listeners and let in-flight requests finish for up to 10 s. The process exits 1 when a listener fails.
+- Build with the Go toolchain pinned in `go.mod`: older toolchains have known remotely triggerable crash bugs in the HTTP/2 and TLS stack. CI runs `govulncheck`.
+
 **/ ! \ On Linux (did not try on other system), capybara must be run with sudo if chosen proxy port is under 1024. It will fail otherwise.**
 
 This project still needs:
