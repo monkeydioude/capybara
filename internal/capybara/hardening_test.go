@@ -98,3 +98,31 @@ func TestSetServicesIsSafeDuringRequests(t *testing.T) {
 	}
 	<-done
 }
+
+func TestConnectAndTraceAreRefused(t *testing.T) {
+	h := NewHandler([]*service{{ID: "a", Pattern: "/", Method: "string", Port: 9000}})
+	for _, m := range []string{http.MethodConnect, http.MethodTrace} {
+		rw := httptest.NewRecorder()
+		h.ServeHTTP(rw, httptest.NewRequest(m, "/anything", nil))
+		assert.Equal(t, http.StatusMethodNotAllowed, rw.Code, m)
+		assert.Equal(t, "close", rw.Header().Get("Connection"), m)
+	}
+}
+
+func TestBuiltinEndpointsAnswerGetAndHeadOnly(t *testing.T) {
+	h := NewHandler([]*service{{ID: "a", Pattern: "/", Method: "string", Port: 9000}})
+	for _, tc := range []struct {
+		method, path string
+		code         int
+	}{
+		{http.MethodGet, "/_healthcheck", http.StatusOK},
+		{http.MethodHead, "/_healthcheck", http.StatusOK},
+		{http.MethodPost, "/_healthcheck", http.StatusMethodNotAllowed},
+		{http.MethodGet, "/favicon.ico", http.StatusOK},
+		{http.MethodDelete, "/favicon.ico", http.StatusMethodNotAllowed},
+	} {
+		rw := httptest.NewRecorder()
+		h.ServeHTTP(rw, httptest.NewRequest(tc.method, tc.path, nil))
+		assert.Equal(t, tc.code, rw.Code, "%s %s", tc.method, tc.path)
+	}
+}

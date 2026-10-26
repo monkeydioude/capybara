@@ -153,13 +153,25 @@ func (h *Handler) compressed(next http.Handler) http.Handler {
 
 // ServeHTTP implements net/http/Handler interface
 func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	if r.RequestURI == "/favicon.ico" {
-		rw.WriteHeader(200)
+	// Tunnelling and diagnostic methods have no place behind a reverse proxy: a 2xx to a
+	// CONNECT would turn the connection into a tunnel.
+	switch r.Method {
+	case http.MethodConnect, http.MethodTrace:
+		rw.Header().Set("Connection", "close")
+		http.Error(rw, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	if r.RequestURI == "/_healthcheck" {
-		HealthcheckHandler(rw, r)
+	switch r.URL.Path {
+	case "/favicon.ico", "/_healthcheck":
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(rw, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.URL.Path == "/_healthcheck" {
+			HealthcheckHandler(rw, r)
+			return
+		}
+		rw.WriteHeader(200)
 		return
 	}
 	prot := FindOutProtocol(r)
