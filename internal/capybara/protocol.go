@@ -2,6 +2,7 @@ package capybara
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -15,6 +16,19 @@ import (
 )
 
 const defaultProtocol = HttpProtocol
+
+// backendTransport is shared by every HTTP and WebSocket service. It bounds what a slow or
+// stuck backend can hold (dial and response-header timeouts, connections per backend) and
+// ignores HTTP_PROXY, which must never apply to loopback backends.
+var backendTransport = &http.Transport{
+	DialContext:           (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+	MaxIdleConns:          256,
+	MaxIdleConnsPerHost:   64,
+	MaxConnsPerHost:       1024,
+	IdleConnTimeout:       90 * time.Second,
+	ResponseHeaderTimeout: 60 * time.Second,
+	ExpectContinueTimeout: time.Second,
+}
 
 type Protocol string
 
@@ -50,6 +64,7 @@ func NewWebSocketProxy(url *url.URL) (*httputil.ReverseProxy, error) {
 		return nil, fmt.Errorf("%w: %w", errors.ErrServiceHandleHTTP, errors.ErrNilPointer)
 	}
 	rp := httputil.NewSingleHostReverseProxy(url)
+	rp.Transport = backendTransport
 	rp.Director = func(req *http.Request) {
 		req.Header.Set("Connection", "Upgrade")
 		req.Header.Set("Upgrade", "websocket")
@@ -62,6 +77,7 @@ func NewHttpReverseProxy(url *url.URL) (*httputil.ReverseProxy, error) {
 		return nil, fmt.Errorf("%w: %w", errors.ErrServiceHandleHTTP, errors.ErrNilPointer)
 	}
 	rp := httputil.NewSingleHostReverseProxy(url)
+	rp.Transport = backendTransport
 	rp.Director = func(req *http.Request) {
 		req.Header.Set("X-Forwarded-Host", req.Host)
 		req.Header.Set("X-Origin-Host", url.Host)
