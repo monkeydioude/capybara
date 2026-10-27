@@ -163,10 +163,6 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		http.Error(rw, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if r.RequestURI == "/favicon.ico" {
-		rw.WriteHeader(200)
-		return
-	}
 
 	if r.RequestURI == "/_healthcheck" {
 		HealthcheckHandler(rw, r)

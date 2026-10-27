@@ -70,6 +70,24 @@ func TestOnlyPublicRoutesAreServed(t *testing.T) {
 	}
 }
 
+func TestFaviconReachesTheService(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.Write([]byte("icon of " + r.URL.Path))
+	}))
+	defer backend.Close()
+	u, _ := url.Parse(backend.URL)
+	port, _ := strconv.Atoi(u.Port())
+	h := NewHandler([]*service{{ID: "app", Pattern: "/", Method: "string", Port: int32(port), Host: "app.spendbaker.com"}})
+
+	r := httptest.NewRequest(http.MethodGet, "/favicon.ico", nil)
+	r.Host = "app.spendbaker.com"
+	rw := httptest.NewRecorder()
+	h.ServeHTTP(rw, r)
+
+	assert.Equal(t, http.StatusOK, rw.Code)
+	assert.Equal(t, "icon of /favicon.ico", rw.Body.String())
+}
+
 func init() {
 	dh = &DummyHTTPHandler{}
 	dr = &DummyResponseWriter{}

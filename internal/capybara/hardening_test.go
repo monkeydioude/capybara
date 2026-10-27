@@ -161,8 +161,8 @@ func TestBuiltinEndpointsAnswerAnyMethodOnTheExactURI(t *testing.T) {
 		{http.MethodHead, "/_healthcheck", http.StatusOK},
 		{http.MethodOptions, "/_healthcheck", http.StatusOK}, // HAProxy's default httpchk method
 		{http.MethodPost, "/_healthcheck", http.StatusOK},
-		{http.MethodGet, "/favicon.ico", http.StatusOK},
-		{http.MethodGet, "/favicon.ico?v=2", http.StatusNotFound}, // cache-busted: left to the services
+		{http.MethodGet, "/favicon.ico", http.StatusNotFound}, // not a built-in: left to the services (TestFaviconReachesTheService)
+		{http.MethodGet, "/favicon.ico?v=2", http.StatusNotFound},
 		{http.MethodGet, "/_healthcheck?x=1", http.StatusNotFound},
 	} {
 		rw := httptest.NewRecorder()
