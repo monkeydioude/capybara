@@ -2,6 +2,7 @@ package capybara
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -15,6 +16,19 @@ import (
 )
 
 const defaultProtocol = HttpProtocol
+
+// backendTransport is shared by every HTTP and WebSocket service. It bounds what a backend
+// that never answers can hold (dial and response-header timeouts) and keeps a pool of idle
+// connections per backend. No cap on connections per backend: a cap makes the extra requests
+// wait silently, which is worse than letting the client connection cap do its job.
+var backendTransport = &http.Transport{
+	DialContext:           (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+	MaxIdleConns:          256,
+	MaxIdleConnsPerHost:   64,
+	IdleConnTimeout:       90 * time.Second,
+	ResponseHeaderTimeout: 5 * time.Minute, // long-polls included; a client that leaves cancels earlier
+	ExpectContinueTimeout: time.Second,
+}
 
 type Protocol string
 
@@ -50,6 +64,7 @@ func NewWebSocketProxy(url *url.URL) (*httputil.ReverseProxy, error) {
 		return nil, fmt.Errorf("%w: %w", errors.ErrServiceHandleHTTP, errors.ErrNilPointer)
 	}
 	rp := httputil.NewSingleHostReverseProxy(url)
+	rp.Transport = backendTransport
 	rp.Director = func(req *http.Request) {
 		req.Header.Set("Connection", "Upgrade")
 		req.Header.Set("Upgrade", "websocket")
@@ -62,6 +77,7 @@ func NewHttpReverseProxy(url *url.URL) (*httputil.ReverseProxy, error) {
 		return nil, fmt.Errorf("%w: %w", errors.ErrServiceHandleHTTP, errors.ErrNilPointer)
 	}
 	rp := httputil.NewSingleHostReverseProxy(url)
+	rp.Transport = backendTransport
 	rp.Director = func(req *http.Request) {
 		req.Header.Set("X-Forwarded-Host", req.Host)
 		req.Header.Set("X-Origin-Host", url.Host)

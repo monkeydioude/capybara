@@ -37,20 +37,16 @@ Example of config.json
 Example of config.yaml
 
 ```
-{
-    proxy:
-        port: 80
-        tls_hosts:
-            - localhost
+proxy:
+    port: 80
+    tls_hosts:
+        - localhost
 
-    services:
-        -   id: bypasscors
-            method: string
-            pattern: /bypasscors
-            port: 8080
-
-}
-
+services:
+    -   id: bypasscors
+        method: string
+        pattern: /bypasscors
+        port: 8080
 ```
 
 Entries in "services" by id:
@@ -89,6 +85,14 @@ Responses of HTTP services go out compressed, brotli or else gzip, as the client
 - responses the service compressed itself (they have their own `Content-Encoding`)
 - responses to `Range` requests (partial downloads, video seeking)
 - WebSocket and gRPC services
+
+### Operations
+
+- `capybara -check -c config.yaml` validates a config file and exits 1 if it would be refused. A config is refused when it has no services, an entry is empty, a `pattern` is missing while no `host` is set (an empty pattern matches every request; use `/` for a deliberate catch-all), a regex pattern does not compile, a `port` is outside 1-65535, or a `method`/`protocol` is unknown. At startup a refused config is fatal; on the 30 s reload the error is logged and the current services stay in place. Run `-check` on the production file before upgrading: entries that were silently skipped before are now refused.
+- Timeouts: 10 s to finish the TLS handshake and send the request headers, 120 s idle (check that a load balancer in front reuses connections for less than that). Request bodies and responses are not bounded, so uploads, WebSocket and gRPC streams are not cut. Backends: 5 s to connect, 5 min to start answering. Concurrent client connections per listener are capped at a quarter of the file descriptor limit (a sixteenth for :80); the cap is logged at startup.
+- `CONNECT` and `TRACE` are refused with 405.
+- `SIGINT`/`SIGTERM` stop the listeners and let in-flight requests finish for up to 10 s. The process exits 1 when the main listener fails; a failed `:80` bind is logged and the proxy keeps serving.
+- Build with the Go toolchain pinned in `go.mod`: older toolchains have known remotely triggerable crash bugs in the HTTP/2 and TLS stack. CI runs `govulncheck`.
 
 **/ ! \ On Linux (did not try on other system), capybara must be run with sudo if chosen proxy port is under 1024. It will fail otherwise.**
 
