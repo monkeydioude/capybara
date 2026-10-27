@@ -1,8 +1,6 @@
 module github.com/monkeydioude/capybara
 
-go 1.26.9
-
-toolchain go1.27.3
+go 1.27.3
 
 require (
 	github.com/CAFxX/httpcompression v0.0.9
